@@ -7,92 +7,49 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.http import JsonResponse
 from rest_framework import generics
-from .models import article
+from .models import Article
+from .serializer import ArticleSerializer
 
 
-# class ArticleList(generics.ListCreateAPIView):
-#     queryset = Article.objects.all()
+class ArticleList(generics.ListCreateAPIView):
+    queryset = Article.objects.all()
+    serializer_class = ArticleSerializer
 
-# 获取文章列表
-def getArticle(request):
-    responseList = []
-    try:
-        articleTitle = article.objects.filter()
-        for i in articleTitle:
-            responseList.append(model_to_dict(i))
-    except Exception as e:
-        GetErrorInfo()
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # fields = ["category", "label"]
+        fields = ["label"]
+        category = self.kwargs.get('categoryName')
+        if category is not None:
+            queryset = Article.objects.filter(category=category)
 
-    return JsonResponse(responseList, safe=False)
+        for field in fields:
+            value = self.request.query_params.get(field, None)
+            if value is not None:
+                if value == "any":
+                    # f-string语法：在字符串前面加一个f，然后在字符串中用大括号 { } 包含要替换的表达式或变量。Python会在运行时计算这些表达式或变量的值，并替换到字符串中。
+                    # __regex是一个字段查找方法，它表示要用正则表达式来匹配字段的值。r"."是一个正则表达式，它表示匹配任何非空字符。
+                    # f"{field}__regex": r"." 的意思是，用正则表达式r"."来匹配field字段的值。这相当于查询任何非空值。
+                    # “**”表示字典解包，作用是将一个字典作为关键字传递给一个函数。
+                    queryset = queryset.filter(**{f"{field}__regex": r"."})
+                else:
+                    # 加上__contain，以模糊匹配
+                    queryset = queryset.filter(**{field + '__contains': value})
 
-
-# 通过ID获取文章内容
-def getArticleForID(request, articleID):
-    responseList = []
-    try:
-        articleData = article.objects.filter(id=articleID)
-        for i in articleData:
-            responseList.append(model_to_dict(i))
-    except Exception as e:
-        GetErrorInfo()
-
-    return JsonResponse(responseList, safe=False)
-
-
-# 通过类型获取文章列表
-def getArticleListByCategory(request, categoryName):
-    responseList = []
-    try:
-        articleData = article.objects.filter(category=categoryName)
-        for i in articleData:
-            responseList.append(model_to_dict(i))
-
-    except Exception as e:
-        GetErrorInfo()
-
-    return JsonResponse(responseList, safe=False)
+        return queryset
 
 
-# 通过标签名获取文章列表
-def getArticleListByLabelName(request, labelName):
-    responseList = []
-    try:
-        articleData = article.objects.filter(label__contains=labelName)
-        for i in articleData:
-            responseList.append(model_to_dict(i))
+# 返回阅读数前4的文章列表
+class ArticleHotList(generics.ListCreateAPIView):
+    serializer_class = ArticleSerializer
 
-    except Exception as e:
-        GetErrorInfo()
-
-    return JsonResponse(responseList, safe=False)
+    def get_queryset(self):
+        return Article.objects.order_by('-readNum')[:4]
 
 
-# 获取搜索结果
-def getSearchResult(request, keyword):
-    responseList = []
-
-    try:
-        # 从title和content中检索符合条件的article
-        articleData_title = article.objects.filter(title__contains=keyword)
-        articleData_content = article.objects.filter(content__contains=keyword)
-        for i in articleData_title:
-            responseList.append(model_to_dict(i))
-
-        # 去重
-        for i in articleData_content:
-            flag = True
-            for j in responseList:
-                if i.title == j['title']:
-                    flag = False
-                    break
-            if flag is True:
-                responseList.append(model_to_dict(i))
-
-    except Exception as e:
-        GetErrorInfo()
-
-    return JsonResponse(responseList, safe=False)
-
+class ArticleDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Article.objects.all()
+    serializer_class = ArticleSerializer
 
 # 输出错误信息
 def GetErrorInfo():

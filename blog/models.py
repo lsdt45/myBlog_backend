@@ -3,7 +3,7 @@ from django.db import models
 import django.utils.timezone as timezone
 
 
-class article(models.Model):
+class Article(models.Model):
     objects = None
     id = models.IntegerField(primary_key=True, verbose_name="文章ID")
     title = models.CharField(max_length=50, verbose_name="文章名")
